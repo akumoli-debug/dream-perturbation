@@ -218,7 +218,7 @@ If you build on this work:
   title   = {Dream Perturbation: Generating Novel Training Environments from DIAMOND's World Model},
   author  = {Wei, Albert},
   year    = {2026},
-  url     = {[GITHUB_LINK]}
+  url     = {https://github.com/akumoli-debug/dream-perturbation}
 }
 ```
 
