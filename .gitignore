@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.pt
+results/dataset/
+results_v2_breakout/dataset/
+results_v2_pong/dataset/
+*.tar.gz
