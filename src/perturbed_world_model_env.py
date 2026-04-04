@@ -15,14 +15,16 @@ Perturbation categories
 2. Action remapping     — reorder / suppress action indices before passing to env
 3. Reward perturbation  — scale or delay the scalar reward
 4. Physics perturbation — directional bias added to the diffusion trajectory
+5. Sigma perturbation   — modifies EDM noise schedule at inference time
+6. Adversarial action   — tiny MLP maps context → action offset, trained adversarially
 
 Preset configs
 --------------
-  "normal"          — no perturbations (baseline)
-  "mirrored"        — horizontal flip + left/right action swap
-  "noisy"           — Gaussian frame noise + brightness jitter
-  "shifted_physics" — directional diffusion noise bias
-  "hard_mode"       — everything at once (all perturbations combined)
+  "normal"            — no perturbations (baseline)
+  "mirrored"          — horizontal flip + left/right action swap
+  "sigma_perturb"     — perturbs DiffusionSamplerConfig: raises sigma_min, reduces num_steps
+  "adversarial_action"— adversarial MLP finds the hardest action perturbations online
+  "hard_mode"         — everything at once (all perturbations combined)
 
 Usage
 -----
@@ -44,6 +46,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
@@ -111,6 +114,36 @@ class PerturbationConfig:
     Implemented as a pixel-space gradient on the generated frame.
     """
 
+    # --- Sigma perturbation (EDM noise schedule) ---------------------------
+    sigma_scale: float = 1.0
+    """
+    Multiplier applied to DiffusionSamplerConfig.sigma_min before each step.
+    Values > 1.0 raise the noise floor, making the world model produce less
+    certain (noisier) frames.  1.0 = no change.
+    """
+
+    steps_reduction: float = 0.0
+    """
+    Fraction by which to reduce num_steps_denoising before each step.
+    0.0 = no change, 0.3 = reduce by 30% (fewer denoising steps → noisier output).
+    Applied as: new_steps = max(1, round(original_steps * (1 - steps_reduction))).
+    """
+
+    # --- Adversarial action perturbation -----------------------------------
+    adversarial_action: bool = False
+    """
+    Train a tiny 2→num_actions MLP (context: normalised return + normalised step)
+    that adds a learned offset to the action logits.  The MLP is updated
+    adversarially — one gradient step per env step — to maximise the negative
+    reward, finding the hardest action perturbation online.
+    """
+
+    adv_lr: float = 1e-3
+    """Learning rate for the adversarial MLP optimiser."""
+
+    adv_hidden: int = 16
+    """Hidden layer width for the adversarial MLP."""
+
     # --- Metadata -----------------------------------------------------------
     name: str = "custom"
     """Human-readable name for logging / figure labels."""
@@ -134,23 +167,24 @@ PRESET_CONFIGS: Dict[str, PerturbationConfig] = {
         swap_left_right=True,
     ),
 
-    # ---- Noisy: corrupted observations ----
-    # Tests robustness to partial observability and sensor noise.
-    "noisy": PerturbationConfig(
-        name="noisy",
-        gaussian_noise_std=0.08,
-        brightness_shift=0.05,
-        contrast_scale=0.90,
+    # ---- Sigma perturbation: EDM noise schedule modification ----
+    # Touches DIAMOND's DiffusionSamplerConfig directly at inference time.
+    # Raises sigma_min by 1.5x (higher noise floor) and reduces num_steps by 30%
+    # (fewer denoising steps → world model is "less sure" about each prediction).
+    # Tests whether the policy is robust to the world model's uncertainty calibration.
+    "sigma_perturb": PerturbationConfig(
+        name="sigma_perturb",
+        sigma_scale=1.5,
+        steps_reduction=0.3,
     ),
 
-    # ---- Shifted physics: altered diffusion dynamics ----
-    # Adds a directional bias to the denoised frame, which propagates through
-    # the obs_buffer into future denoising steps, mimicking changed 'physics'.
-    "shifted_physics": PerturbationConfig(
-        name="shifted_physics",
-        physics_bias_strength=0.04,
-        physics_bias_direction="down",
-        reward_scale=0.9,
+    # ---- Adversarial action: online adversarial perturbation ----
+    # A tiny 2-layer MLP maps (normalised_return, normalised_step) → action logit offset.
+    # The MLP is updated adversarially each step to find the hardest action perturbation.
+    # Tests whether dream-trained policies are robust to learned adversarial interference.
+    "adversarial_action": PerturbationConfig(
+        name="adversarial_action",
+        adversarial_action=True,
     ),
 
     # ---- Hard mode: everything combined ----
@@ -170,6 +204,15 @@ PRESET_CONFIGS: Dict[str, PerturbationConfig] = {
         physics_bias_direction="right",
     ),
 }
+
+# Ordered list of preset names used by training loops and evaluation
+PRESET_NAMES: List[str] = [
+    "normal",
+    "mirrored",
+    "sigma_perturb",
+    "adversarial_action",
+    "hard_mode",
+]
 
 
 # ---------------------------------------------------------------------------
@@ -254,7 +297,7 @@ class PerturbedWorldModelEnv:
         The underlying (unperturbed) DIAMOND world-model environment.
     perturbation_config : PerturbationConfig | str
         Either a PerturbationConfig instance or a string key into
-        PRESET_CONFIGS (e.g. "mirrored", "noisy", "shifted_physics").
+        PRESET_CONFIGS (e.g. "mirrored", "sigma_perturb", "adversarial_action").
     seed : int, optional
         RNG seed for reproducibility of stochastic perturbations.
     """
@@ -286,6 +329,42 @@ class PerturbedWorldModelEnv:
 
         # Reward delay buffer: one deque per parallel environment
         self._reward_buffer: Optional[List[deque]] = None
+
+        # ------------------------------------------------------------------
+        # Sigma perturbation state
+        # ------------------------------------------------------------------
+        # We store the original sampler config values so we can temporarily
+        # modify them before each step() call and restore them after.
+        # Access path: self._env.sampler.cfg  (DiffusionSamplerConfig)
+        self._orig_sigma_min: Optional[float] = None
+        self._orig_num_steps: Optional[int] = None
+
+        if self.cfg.sigma_scale != 1.0 or self.cfg.steps_reduction != 0.0:
+            # Snapshot original values at construction time so they are
+            # always available even if the sampler config is modified elsewhere.
+            try:
+                sampler_cfg = self._env.sampler.cfg
+                self._orig_sigma_min = sampler_cfg.sigma_min
+                self._orig_num_steps = sampler_cfg.num_steps_denoising
+            except AttributeError:
+                # WorldModelEnv variant without .sampler — sigma perturbation
+                # will be silently skipped.
+                pass
+
+        # ------------------------------------------------------------------
+        # Adversarial action MLP
+        # ------------------------------------------------------------------
+        self._adv_mlp: Optional[nn.Module] = None
+        self._adv_optimizer: Optional[torch.optim.Optimizer] = None
+        self._episode_return: float = 0.0
+        self._episode_step: int = 0
+        self._max_episode_steps: int = 1000  # normalisation constant
+
+        if self.cfg.adversarial_action:
+            # Lazy init: we need num_actions from the env, but the env may not
+            # be reset yet.  We initialise in the first step() call via
+            # _maybe_init_adv_mlp().
+            pass
 
     # ------------------------------------------------------------------
     # Env interface properties
@@ -319,6 +398,11 @@ class PerturbedWorldModelEnv:
                 for _ in range(self.num_envs)
             ]
 
+        # Reset adversarial episode tracking
+        if self.cfg.adversarial_action:
+            self._episode_return = 0.0
+            self._episode_step = 0
+
         return self._perturb_obs(obs), info
 
     def reset_dead(self, dead: torch.BoolTensor) -> None:
@@ -333,11 +417,40 @@ class PerturbedWorldModelEnv:
         """
         Apply action perturbations, delegate to the underlying env,
         then apply frame / reward / physics perturbations to the output.
+
+        For sigma_perturb: temporarily modifies the DiffusionSamplerConfig
+        before calling the underlying step, then restores original values.
+
+        For adversarial_action: applies a learned action logit offset and
+        performs one adversarial gradient step after observing the reward.
         """
+        # ------------------------------------------------------------------
+        # Adversarial action: apply MLP offset to action (before any action
+        # remapping / dropout) and accumulate the gradient step later.
+        # ------------------------------------------------------------------
+        adv_logit_offset: Optional[Tensor] = None
+        if self.cfg.adversarial_action:
+            act, adv_logit_offset = self._apply_adversarial_action(act)
+
         act = self._perturb_action(act)
+
+        # ------------------------------------------------------------------
+        # Sigma perturbation: temporarily modify the sampler config
+        # ------------------------------------------------------------------
+        sigma_modified = False
+        if self.cfg.sigma_scale != 1.0 or self.cfg.steps_reduction != 0.0:
+            if self._orig_sigma_min is not None:
+                self._apply_sigma_perturbation()
+                sigma_modified = True
 
         # Call underlying world-model step
         obs, rew, end, trunc, info = self._env.step(act)
+
+        # ------------------------------------------------------------------
+        # Restore sigma config immediately after step
+        # ------------------------------------------------------------------
+        if sigma_modified:
+            self._restore_sigma()
 
         # Apply frame perturbation to the returned observation
         obs = self._perturb_obs(obs)
@@ -358,6 +471,12 @@ class PerturbedWorldModelEnv:
                     info["final_observation"]
                 )
 
+        # ------------------------------------------------------------------
+        # Adversarial action: one gradient step (maximise perturbation loss)
+        # ------------------------------------------------------------------
+        if self.cfg.adversarial_action and adv_logit_offset is not None:
+            self._adversarial_gradient_step(rew, end, trunc)
+
         return obs, rew, end, trunc, info
 
     # ------------------------------------------------------------------
@@ -369,6 +488,178 @@ class PerturbedWorldModelEnv:
 
     def predict_rew_end(self, *args, **kwargs):
         return self._env.predict_rew_end(*args, **kwargs)
+
+    # ------------------------------------------------------------------
+    # Sigma perturbation helpers
+    # ------------------------------------------------------------------
+
+    def _apply_sigma_perturbation(self) -> None:
+        """
+        Temporarily modify the DiffusionSamplerConfig on self._env.sampler.cfg
+        to perturb the EDM noise schedule for the upcoming step() call.
+
+        What changes:
+          - sigma_min is scaled up by cfg.sigma_scale (raises the noise floor)
+          - num_steps_denoising is reduced by cfg.steps_reduction fraction
+            (fewer denoising steps → less refined, noisier predictions)
+
+        The sampler's pre-built sigmas tensor is also rebuilt so the schedule
+        change takes effect immediately.  Original values are restored by
+        _restore_sigma() after the step.
+        """
+        try:
+            sampler = self._env.sampler
+            cfg = sampler.cfg
+
+            # Modify sigma_min
+            new_sigma_min = self._orig_sigma_min * self.cfg.sigma_scale
+            cfg.sigma_min = new_sigma_min
+
+            # Modify num_steps_denoising
+            new_num_steps = max(
+                1,
+                round(self._orig_num_steps * (1.0 - self.cfg.steps_reduction))
+            )
+            cfg.num_steps_denoising = new_num_steps
+
+            # Rebuild the sigmas schedule so DiffusionSampler.sample() uses
+            # the updated parameters
+            from models.diffusion.diffusion_sampler import build_sigmas
+            sampler.sigmas = build_sigmas(
+                new_num_steps,
+                new_sigma_min,
+                cfg.sigma_max,
+                cfg.rho,
+                sampler.denoiser.device,
+            )
+        except (AttributeError, ImportError):
+            # Gracefully skip if the sampler structure is different
+            pass
+
+    def _restore_sigma(self) -> None:
+        """
+        Restore DiffusionSamplerConfig and the sigmas tensor to their
+        original values after a sigma-perturbed step() call.
+        """
+        try:
+            sampler = self._env.sampler
+            cfg = sampler.cfg
+
+            cfg.sigma_min = self._orig_sigma_min
+            cfg.num_steps_denoising = self._orig_num_steps
+
+            from models.diffusion.diffusion_sampler import build_sigmas
+            sampler.sigmas = build_sigmas(
+                self._orig_num_steps,
+                self._orig_sigma_min,
+                cfg.sigma_max,
+                cfg.rho,
+                sampler.denoiser.device,
+            )
+        except (AttributeError, ImportError):
+            pass
+
+    # ------------------------------------------------------------------
+    # Adversarial action helpers
+    # ------------------------------------------------------------------
+
+    def _maybe_init_adv_mlp(self, num_actions: int) -> None:
+        """Lazily create the adversarial MLP on first use."""
+        if self._adv_mlp is not None:
+            return
+        device = self.device
+        self._adv_mlp = nn.Sequential(
+            nn.Linear(2, self.cfg.adv_hidden),
+            nn.ReLU(),
+            nn.Linear(self.cfg.adv_hidden, num_actions),
+        ).to(device)
+        self._adv_optimizer = torch.optim.Adam(
+            self._adv_mlp.parameters(), lr=self.cfg.adv_lr
+        )
+
+    def _apply_adversarial_action(
+        self, act: torch.LongTensor
+    ) -> Tuple[torch.LongTensor, Tensor]:
+        """
+        Compute the adversarial action logit offset from the MLP and apply it
+        to perturb the action selection.
+
+        The context vector is [normalised_return, normalised_step]:
+          - normalised_return: episode_return / (max_observed + epsilon), capped to [-1, 1]
+          - normalised_step:   episode_step / max_episode_steps, in [0, 1]
+
+        The MLP produces a [1, num_actions] offset tensor.  The offset is added
+        to a one-hot encoding of the original action to produce perturbed logits,
+        and the new action is argmax of those logits.
+
+        Returns (perturbed_act, offset_tensor).
+        """
+        # Infer num_actions from the action tensor
+        # act is [num_envs] of long indices — we use the env's action space
+        # (we assume at least as many actions as the max index + 1, or use
+        # the env's num_actions if available)
+        try:
+            num_actions = int(self._env.sampler.denoiser.cfg.inner_model.num_actions)
+        except AttributeError:
+            num_actions = int(act.max().item()) + 1
+
+        self._maybe_init_adv_mlp(num_actions)
+
+        device = self.device
+        norm_return = float(self._episode_return) / (
+            abs(self._episode_return) + 1.0
+        )  # tanh-like, stays in (-1, 1)
+        norm_step = min(1.0, self._episode_step / max(self._max_episode_steps, 1))
+
+        context = torch.tensor(
+            [[norm_return, norm_step]], dtype=torch.float32, device=device
+        )  # [1, 2]
+
+        offset = self._adv_mlp(context)  # [1, num_actions]
+
+        # Build one-hot logits from the original actions, add offset, take argmax
+        # We process each env independently; offset is broadcast across envs.
+        one_hot = F.one_hot(act.clamp(0, num_actions - 1), num_actions).float()
+        # one_hot: [num_envs, num_actions]; offset: [1, num_actions]
+        perturbed_logits = one_hot + offset  # broadcast over num_envs
+        perturbed_act = perturbed_logits.argmax(dim=-1).long()
+
+        self._episode_step += 1
+        return perturbed_act, offset
+
+    def _adversarial_gradient_step(
+        self,
+        rew: Tensor,
+        end: Tensor,
+        trunc: Tensor,
+    ) -> None:
+        """
+        Perform one gradient step on the adversarial MLP.
+
+        Objective: maximise -reward (the adversary wants to hurt the agent),
+        so loss = -mean(rew).  We use mean over envs for a stable gradient.
+
+        Also updates episode_return tracking and resets on episode end.
+        """
+        if self._adv_mlp is None or self._adv_optimizer is None:
+            return
+
+        mean_rew = rew.float().mean()
+        loss = -mean_rew  # adversary maximises negative reward
+
+        self._adv_optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(self._adv_mlp.parameters(), 1.0)
+        self._adv_optimizer.step()
+
+        # Update episode return tracking (use mean reward across envs)
+        self._episode_return += mean_rew.item()
+
+        # Reset on episode termination
+        done = torch.logical_or(end, trunc)
+        if done.any():
+            self._episode_return = 0.0
+            self._episode_step = 0
 
     # ------------------------------------------------------------------
     # Frame perturbation
@@ -522,7 +813,7 @@ class PerturbedWorldModelEnv:
 def make_perturbed_envs(
     world_model_env,
     presets: Optional[List[str]] = None,
-) -> Dict[str, PerturbedWorldModelEnv]:
+) -> Dict[str, "PerturbedWorldModelEnv"]:
     """
     Create one PerturbedWorldModelEnv per preset from a single base
     WorldModelEnv.
