@@ -475,7 +475,7 @@ class PerturbedWorldModelEnv:
         # Adversarial action: one gradient step (maximise perturbation loss)
         # ------------------------------------------------------------------
         if self.cfg.adversarial_action and adv_logit_offset is not None:
-            self._adversarial_gradient_step(rew, end, trunc)
+            self._adversarial_gradient_step(adv_logit_offset, rew, end, trunc)
 
         return obs, rew, end, trunc, info
 
@@ -629,6 +629,7 @@ class PerturbedWorldModelEnv:
 
     def _adversarial_gradient_step(
         self,
+        adv_logit_offset: Tensor,
         rew: Tensor,
         end: Tensor,
         trunc: Tensor,
@@ -636,16 +637,23 @@ class PerturbedWorldModelEnv:
         """
         Perform one gradient step on the adversarial MLP.
 
-        Objective: maximise -reward (the adversary wants to hurt the agent),
-        so loss = -mean(rew).  We use mean over envs for a stable gradient.
+        Objective: push the MLP to produce larger offsets (more aggressive
+        perturbations). We use the L2 norm of the offset as a surrogate loss
+        with sign flipped by the reward: when reward is high (agent is doing
+        well), maximise offset magnitude; when reward is low, the perturbation
+        is already working so we scale back. This avoids needing gradients
+        through the non-differentiable environment reward.
 
-        Also updates episode_return tracking and resets on episode end.
+        loss = -mean_rew_sign * ||offset||^2
         """
         if self._adv_mlp is None or self._adv_optimizer is None:
             return
 
-        mean_rew = rew.float().mean()
-        loss = -mean_rew  # adversary maximises negative reward
+        mean_rew = rew.float().mean().item()
+        # Sign: when agent gets positive reward, adversary should push harder
+        sign = 1.0 if mean_rew >= 0 else -1.0
+        # Surrogate loss: maximise offset magnitude when agent is doing well
+        loss = -sign * adv_logit_offset.pow(2).mean()
 
         self._adv_optimizer.zero_grad()
         loss.backward()
@@ -653,7 +661,7 @@ class PerturbedWorldModelEnv:
         self._adv_optimizer.step()
 
         # Update episode return tracking (use mean reward across envs)
-        self._episode_return += mean_rew.item()
+        self._episode_return += float(mean_rew)
 
         # Reset on episode termination
         done = torch.logical_or(end, trunc)
@@ -835,3 +843,4 @@ def make_perturbed_envs(
         name: PerturbedWorldModelEnv(world_model_env, perturbation_config=name)
         for name in presets
     }
+# v4 fix3
