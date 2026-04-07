@@ -1,0 +1,43 @@
+{
+  "baseline": {
+    "r2": 0.3032930335187296,
+    "frame_deviation": 0.0008058983203954995,
+    "description": "No perturbation"
+  },
+  "hidden_drop_1": {
+    "r2": 0.3031162801575711,
+    "frame_deviation": 0.0008058983203954995,
+    "description": "Drop 1/4 context frames"
+  },
+  "hidden_drop_2": {
+    "r2": 0.25817016294986894,
+    "frame_deviation": 0.0008058983203954995,
+    "description": "Drop 2/4 context frames"
+  },
+  "hidden_drop_3": {
+    "r2": 0.00541400498809963,
+    "frame_deviation": 0.0008058983203954995,
+    "description": "Drop 3/4 context frames"
+  },
+  "action_mask": {
+    "r2": 0.3032930335187296,
+    "frame_deviation": 0.0008058983203954995,
+    "description": "Mask all actions \u2192 NOOP"
+  },
+  "obs_noise_low": {
+    "r2": 0.2510128577425681,
+    "frame_deviation": 0.000878977554384619,
+    "description": "Obs noise \u03c3=0.05"
+  },
+  "obs_noise_high": {
+    "r2": -0.01994303909466688,
+    "frame_deviation": 0.000878977554384619,
+    "description": "Obs noise \u03c3=0.20"
+  },
+  "obs_flip": {
+    "r2": 0.2613111241569145,
+    "frame_deviation": 0.0008058983203954995,
+    "description": "Horizontal flip"
+  },
+  "pearson_r": 0.4239620561527672
+}

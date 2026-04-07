@@ -1,0 +1,179 @@
+{
+  "vae": {
+    "conv_0": {
+      "mean_r2": 0.0006700222686057226,
+      "std_r2": 0.0005333120869884259,
+      "act_dim": 32,
+      "architecture": "VAE"
+    },
+    "conv_2": {
+      "mean_r2": 0.012423982645185627,
+      "std_r2": 0.0008486270923185609,
+      "act_dim": 64,
+      "architecture": "VAE"
+    },
+    "conv_4": {
+      "mean_r2": 0.0882559732919795,
+      "std_r2": 0.0008363252646179373,
+      "act_dim": 128,
+      "architecture": "VAE"
+    },
+    "conv_6": {
+      "mean_r2": 0.2275947628260068,
+      "std_r2": 0.0037061759469034306,
+      "act_dim": 256,
+      "architecture": "VAE"
+    },
+    "conv_8": {
+      "mean_r2": 0.3342418622627897,
+      "std_r2": 0.00397036052772135,
+      "act_dim": 256,
+      "architecture": "VAE"
+    },
+    "latent_mu": {
+      "mean_r2": 0.31848444905156187,
+      "std_r2": 0.00172272485492836,
+      "act_dim": 256,
+      "architecture": "VAE"
+    },
+    "deconv_0": {
+      "mean_r2": 0.044175721218620456,
+      "std_r2": 0.032096949054636684,
+      "act_dim": 128,
+      "architecture": "VAE"
+    },
+    "deconv_2": {
+      "mean_r2": 0.1873373657985642,
+      "std_r2": 0.005749214586591314,
+      "act_dim": 64,
+      "architecture": "VAE"
+    },
+    "deconv_4": {
+      "mean_r2": 0.0844765322937973,
+      "std_r2": 0.0006797022682911073,
+      "act_dim": 32,
+      "architecture": "VAE"
+    },
+    "deconv_6": {
+      "mean_r2": -0.00016991578252164205,
+      "std_r2": 0.0007161700499656302,
+      "act_dim": 3,
+      "architecture": "VAE"
+    }
+  },
+  "diamond": {
+    "u_blocks.0.resblocks.1": {
+      "mean_r2": 0.6181535515192872,
+      "std_r2": 0.004369052060896852,
+      "architecture": "DIAMOND"
+    },
+    "d_blocks.3.resblocks.1": {
+      "mean_r2": 0.5976378353266341,
+      "std_r2": 0.002800386982649687,
+      "architecture": "DIAMOND"
+    },
+    "u_blocks.0.resblocks.0": {
+      "mean_r2": 0.5930397708283707,
+      "std_r2": 0.004813078473019416,
+      "architecture": "DIAMOND"
+    },
+    "mid_blocks.resblocks.1": {
+      "mean_r2": 0.5842410791240351,
+      "std_r2": 0.0026179987618497207,
+      "architecture": "DIAMOND"
+    },
+    "u_blocks.0.resblocks.2": {
+      "mean_r2": 0.5692649334969033,
+      "std_r2": 0.0032344439649918655,
+      "architecture": "DIAMOND"
+    },
+    "d_blocks.3.resblocks.0": {
+      "mean_r2": 0.5668983072202142,
+      "std_r2": 0.0019726098676291163,
+      "architecture": "DIAMOND"
+    },
+    "mid_blocks.resblocks.0": {
+      "mean_r2": 0.5546419375101985,
+      "std_r2": 0.0019221734737774891,
+      "architecture": "DIAMOND"
+    },
+    "u_blocks.1.resblocks.0": {
+      "mean_r2": 0.551524365203376,
+      "std_r2": 0.0052730858660422816,
+      "architecture": "DIAMOND"
+    },
+    "u_blocks.1.resblocks.1": {
+      "mean_r2": 0.5314372270683206,
+      "std_r2": 0.005845576381266665,
+      "architecture": "DIAMOND"
+    },
+    "u_blocks.1.resblocks.2": {
+      "mean_r2": 0.5299016822708311,
+      "std_r2": 0.005552519448264277,
+      "architecture": "DIAMOND"
+    },
+    "u_blocks.2.resblocks.0": {
+      "mean_r2": 0.5177259795020663,
+      "std_r2": 0.006500457290009561,
+      "architecture": "DIAMOND"
+    },
+    "u_blocks.2.resblocks.1": {
+      "mean_r2": 0.4880597020054324,
+      "std_r2": 0.003986687011096161,
+      "architecture": "DIAMOND"
+    },
+    "d_blocks.2.resblocks.1": {
+      "mean_r2": 0.42518441884214175,
+      "std_r2": 0.0038644936312437444,
+      "architecture": "DIAMOND"
+    },
+    "u_blocks.2.resblocks.2": {
+      "mean_r2": 0.37518680523549086,
+      "std_r2": 0.0039555354539723775,
+      "architecture": "DIAMOND"
+    },
+    "d_blocks.2.resblocks.0": {
+      "mean_r2": 0.3700779124014596,
+      "std_r2": 0.004067320339464013,
+      "architecture": "DIAMOND"
+    },
+    "d_blocks.1.resblocks.1": {
+      "mean_r2": 0.31347620302975115,
+      "std_r2": 0.002544799037834291,
+      "architecture": "DIAMOND"
+    },
+    "d_blocks.1.resblocks.0": {
+      "mean_r2": 0.1576248585703875,
+      "std_r2": 0.0015800185698189155,
+      "architecture": "DIAMOND"
+    },
+    "u_blocks.3.resblocks.1": {
+      "mean_r2": 0.1503401096770286,
+      "std_r2": 0.002293765583927064,
+      "architecture": "DIAMOND"
+    },
+    "u_blocks.3.resblocks.0": {
+      "mean_r2": 0.08725490915450487,
+      "std_r2": 0.0021670572933872104,
+      "architecture": "DIAMOND"
+    },
+    "u_blocks.3.resblocks.2": {
+      "mean_r2": 0.03955334722263733,
+      "std_r2": 0.005099951991042188,
+      "architecture": "DIAMOND"
+    },
+    "d_blocks.0.resblocks.1": {
+      "mean_r2": 0.00614972943807468,
+      "std_r2": 0.0005037253996055845,
+      "architecture": "DIAMOND"
+    },
+    "d_blocks.0.resblocks.0": {
+      "mean_r2": 0.003981451730406938,
+      "std_r2": 0.000402482136822611,
+      "architecture": "DIAMOND"
+    }
+  },
+  "best_vae_layer": "conv_8",
+  "best_vae_r2": 0.3342418622627897,
+  "best_diamond_r2": 0.6181535515192872
+}
