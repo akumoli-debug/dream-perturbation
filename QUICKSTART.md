@@ -22,13 +22,13 @@ SSH into each instance and run:
 cd ~
 git clone https://github.com/eloialonso/diamond.git
 
-# Upload the learning-from-failure project files
+# Upload the dream-perturbation project files
 # Option A: If you push to GitHub first
-git clone https://github.com/YOUR_USERNAME/learning-from-failure.git
+git clone https://github.com/YOUR_USERNAME/dream-perturbation.git
 
 # Option B: scp from your laptop
 # From your laptop terminal:
-# scp -P <PORT> -r learning-from-failure/ root@<VAST_IP>:~/
+# scp -P <PORT> -r dream-perturbation/ root@<VAST_IP>:~/
 ```
 
 ## Step 3: Run data collection on GPU 1
@@ -43,7 +43,7 @@ pip install lpips scikit-learn matplotlib seaborn
 # Collect and curate data (~15-30 min)
 cd ~/diamond
 export DIAMOND_DIR=~/diamond
-python ~/learning-from-failure/scripts/collect_and_curate.py --game BreakoutNoFrameskip-v4
+python ~/dream-perturbation/scripts/collect_and_curate.py --game BreakoutNoFrameskip-v4
 ```
 
 This creates:
@@ -118,7 +118,6 @@ scp -P <PORT> -r root@<GPU2_IP>:~/diamond/outputs/ ./results/failure_enriched/
 
 ## Step 8: Run evaluation
 
-(I'll give you the evaluation scripts when training is done)
 
 ---
 

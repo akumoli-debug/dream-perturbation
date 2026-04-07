@@ -1,0 +1,112 @@
+[
+  {
+    "layer": "u_blocks.1.resblocks.1",
+    "r2": 0.04567700398629637,
+    "act_dim": 64
+  },
+  {
+    "layer": "u_blocks.1.resblocks.2",
+    "r2": 0.04383666534891595,
+    "act_dim": 64
+  },
+  {
+    "layer": "u_blocks.1.resblocks.0",
+    "r2": 0.03732417263571419,
+    "act_dim": 64
+  },
+  {
+    "layer": "u_blocks.0.resblocks.2",
+    "r2": 0.0360318035418673,
+    "act_dim": 64
+  },
+  {
+    "layer": "u_blocks.0.resblocks.0",
+    "r2": 0.03534883978776415,
+    "act_dim": 64
+  },
+  {
+    "layer": "u_blocks.0.resblocks.1",
+    "r2": 0.035151111700755466,
+    "act_dim": 64
+  },
+  {
+    "layer": "d_blocks.3.resblocks.1",
+    "r2": 0.03479882882993601,
+    "act_dim": 64
+  },
+  {
+    "layer": "d_blocks.2.resblocks.0",
+    "r2": 0.03355464737681946,
+    "act_dim": 64
+  },
+  {
+    "layer": "d_blocks.3.resblocks.0",
+    "r2": 0.03314712602953784,
+    "act_dim": 64
+  },
+  {
+    "layer": "d_blocks.2.resblocks.1",
+    "r2": 0.031450344657177,
+    "act_dim": 64
+  },
+  {
+    "layer": "mid_blocks.resblocks.0",
+    "r2": 0.03019882300755572,
+    "act_dim": 64
+  },
+  {
+    "layer": "mid_blocks.resblocks.1",
+    "r2": 0.0293988658244837,
+    "act_dim": 64
+  },
+  {
+    "layer": "u_blocks.2.resblocks.0",
+    "r2": 0.028514966402352515,
+    "act_dim": 64
+  },
+  {
+    "layer": "u_blocks.2.resblocks.1",
+    "r2": 0.023894036422084097,
+    "act_dim": 64
+  },
+  {
+    "layer": "u_blocks.2.resblocks.2",
+    "r2": 0.015474456055740271,
+    "act_dim": 64
+  },
+  {
+    "layer": "d_blocks.1.resblocks.1",
+    "r2": 0.009572588444951236,
+    "act_dim": 64
+  },
+  {
+    "layer": "u_blocks.3.resblocks.0",
+    "r2": 0.00699381901360796,
+    "act_dim": 64
+  },
+  {
+    "layer": "d_blocks.1.resblocks.0",
+    "r2": 0.0049429763787142145,
+    "act_dim": 64
+  },
+  {
+    "layer": "u_blocks.3.resblocks.1",
+    "r2": 0.0031865385244256306,
+    "act_dim": 64
+  },
+  {
+    "layer": "d_blocks.0.resblocks.0",
+    "r2": 0.0006070800410267196,
+    "act_dim": 64
+  },
+  {
+    "layer": "d_blocks.0.resblocks.1",
+    "r2": 0.0005365480615352469,
+    "act_dim": 64
+  },
+  {
+    "layer": "u_blocks.3.resblocks.2",
+    "r2": -0.004264204644250036,
+    "act_dim": 64
+  }
+]

@@ -372,7 +372,7 @@ class PerturbedWorldModelEnv:
 
     @property
     def num_envs(self) -> int:
-        return self._env.num_envs
+        return self._env.sampler.denoiser.inner_model.cfg.num_actions
 
     @property
     def device(self) -> torch.device:
@@ -381,7 +381,7 @@ class PerturbedWorldModelEnv:
     # num_actions is read by make_env_loop
     @property
     def num_actions(self) -> int:
-        return self._env.num_envs  # fallback; real value set when available
+        return self._env.sampler.denoiser.inner_model.cfg.num_actions  # fallback; real value set when available
 
     # ------------------------------------------------------------------
     # Reset
