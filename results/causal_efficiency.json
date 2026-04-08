@@ -1,0 +1,20 @@
+{
+  "Pong": {
+    "probe_r2": 0.6245782937802249,
+    "probe_r2_std": 0.0023819447528548596,
+    "effect": 0.00018560230731964195,
+    "cohens_d": 0.16294836200388604,
+    "p_value": 0.0305,
+    "causal_efficiency": 0.0002971641925380604,
+    "best_layer": "u_blocks.0.resblocks.1"
+  },
+  "Breakout": {
+    "probe_r2": 0.3809655797319298,
+    "probe_r2_std": 0.007759295166538598,
+    "effect": -0.0002614352703094458,
+    "cohens_d": -0.01602943899597328,
+    "p_value": 0.5715,
+    "causal_efficiency": -0.0006862437903995669,
+    "best_layer": "mid_blocks.resblocks.1"
+  }
+}
