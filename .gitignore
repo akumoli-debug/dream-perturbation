@@ -1,23 +1,21 @@
+# Python
 __pycache__/
-*.pyc
-*.pt
-results/dataset/
-results_v2_breakout/dataset/
-results_v2_pong/dataset/
-*.tar.gz
-results/guided_*.png
-results/steer_*.png
-results/v2_conditioned_*.png
-results/overnight_results.json
-results/pixel_vec_v2.png
-results/conditioned_*.png
-results/persistent_*.png
-src/overnight_run.py
-src/finetune_v2.py
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Environments
+.venv/
+venv/
+
+# Data and results (generated)
 data/
-probes/acts_*.pt
-probes/pixel_steering_vec*.pt
-probes/probe_*.pt
-checkpoints/
-__pycache__/
-*.pyc
+figures/
+experiments/*/outputs/
+experiments/*/runs/
+wandb/
+
+# OS
+.DS_Store
