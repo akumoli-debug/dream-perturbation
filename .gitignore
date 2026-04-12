@@ -19,3 +19,12 @@ wandb/
 
 # OS
 .DS_Store
+# C1 artifacts — regeneratable
+data/activations*.pt
+data/pong_dataset/
+data/specificity_matrix*.pt
+# HF cache
+.cache/
+~/.cache/
+# Misc
+*.pyc
