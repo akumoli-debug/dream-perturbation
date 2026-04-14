@@ -24,3 +24,18 @@
 ## Reproducibility
 - Single random seed for the probe sweep. A seed-sensitivity check is deferred.
 - HuggingFace downloads are unauthenticated; rate limits could affect reruns.
+
+## C2 reproducibility notes (added during C2-pilot setup)
+
+### Pong RAM ball_y = 0 is a sentinel
+
+Pong's ALE RAM sets ball_x and ball_y to 0 when the ball is off-screen between points. Under a random policy, this occurs in ~37% of collected frames. If these are not filtered before probe fitting, the ridge probe wastes capacity on the sentinel spike and test R2 drops by ~0.12 (from 0.71 to 0.60 for ball_y at s3_mid/pooled/sigma[2]). The published `data/probe_results.csv` values assume the filter is applied. `src/steering/refit_c2_probe.py` applies `y > 1` as the filter.
+
+### Probe direction is concentrated, not smeared
+
+The ball_y probe direction at s3_mid/pooled/sigma[2] has ~3x more energy in the top-5 channels than would be expected under a uniform prior (top-5 weights in magnitude 0.22 to 0.38, uniform prior 1/sqrt(64) ~= 0.125). This concentration is what makes probe-direction steering plausible as a causal handle. If future probe sites show more diffuse directions (no dominant channels), the steering-via-probe-weights method will need re-justification at those sites; a diffuse probe weight vector likely picks up correlated-but-not-causal variance rather than a targeted latent axis.
+
+### Probe-weight steering inherits linearity assumptions
+
+The steering vector is derived from a linear ridge probe. It assumes ball_y is linearly readable from pooled channel activations at this site and timestep, which C1 confirms at R2 = 0.71. Non-linear latent structure for ball_y (e.g., the ball_y axis being a thresholded combination of channels) would be invisible to this method. If G1 passes and G2 fails (ball_y edits co-move paddle_y), one candidate explanation is that the ridge direction captures a shared spatial-position axis rather than a ball-specific axis — the paddles and ball share vertical position encoding by architecture. This would be a finding about DIAMOND's factorization, not a failure of the method.
+

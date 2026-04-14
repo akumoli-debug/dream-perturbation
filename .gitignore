@@ -11,7 +11,7 @@ dist/
 venv/
 
 # Data and results (generated)
-data/
+data/*
 figures/
 experiments/*/outputs/
 experiments/*/runs/
@@ -28,3 +28,7 @@ data/specificity_matrix*.pt
 ~/.cache/
 # Misc
 *.pyc
+
+# Keep steering vectors (tiny, reproducibility-critical)
+!data/steering_vectors
+!data/steering_vectors/**
